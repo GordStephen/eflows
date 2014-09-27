@@ -1,4 +1,5 @@
-import argparse
+import argparse, csv
+import numpy as np
 from sqlalchemy import create_engine, Table, Column, Integer, String, ForeignKey
 from sqlalchemy.schema import ForeignKeyConstraint 
 from sqlalchemy.orm import sessionmaker
@@ -69,6 +70,7 @@ class Flow(Base):
     __tablename__ = 'flows'
 
     id = Column(Integer, primary_key=True)
+    name = Column(String)
     resource_id = Column(Integer, ForeignKey('resources.id'))
     source_node_id = Column(Integer) 
     sink_node_id = Column(Integer) 
@@ -86,6 +88,14 @@ class Flow(Base):
 if args.load_data:
     Base.metadata.create_all(engine)
     loading_session = Session()
+
+    balance = np.loadtxt(open('consumption.txt', 'rb'), delimiter='\t', dtype=str)
+    balance = balance[np.where(np.in1d(balance[:,0], ["b'ID'", "b'DESCRIPTION'", "b'UNIT'", "b'PARSETYPE'"], invert=True))]
+    balance = balance[:, np.where(np.in1d(balance[0,:], ["b'Millions of tonnes of oil equivalent'", "b'META'", "b'CODE'", "b''"], invert=True))]
+
+    
+
+    print(balance)
     #TODO Read in balance.txt and consumption.txt, mapping to models 
     loading_session.close()
 
