@@ -89,13 +89,46 @@ if args.load_data:
     Base.metadata.create_all(engine)
     loading_session = Session()
 
-    balance = np.loadtxt(open('consumption.txt', 'rb'), delimiter='\t', dtype=str)
-    balance = balance[np.where(np.in1d(balance[:,0], ["b'ID'", "b'DESCRIPTION'", "b'UNIT'", "b'PARSETYPE'"], invert=True))]
-    balance = balance[:, np.where(np.in1d(balance[0,:], ["b'Millions of tonnes of oil equivalent'", "b'META'", "b'CODE'", "b''"], invert=True))]
+    # Load consumption.txt
+    consumption = np.loadtxt(open('consumption.txt', 'rb'), delimiter='\t', dtype=str)
 
-    
+    # Remove useless rows
+    consumption = consumption[np.where(np.in1d(consumption[:,0], ["b'ID'", "b'DESCRIPTION'", "b'UNIT'", "b'PARSETYPE'", "b'PRECISION'"], invert=True))]
 
-    print(balance)
+    # Remove useless columns
+    consumption = consumption[:, np.where(np.in1d(consumption[0,:], ["b'Millions of tonnes of oil equivalent'", "b'META'", "b'CODE'", "b''"], invert=True))[0]]
+
+    # Remove redundant (summary) rows and their indicator columns
+    cols_showing_redundant_rows = consumption[:, np.where(np.in1d(consumption[0,:], ["b'Total final consumption'", "b'SectorIn'"]))[0]]
+
+    consumption = consumption[np.where(
+        np.logical_not(np.logical_or(
+            np.in1d(
+                cols_showing_redundant_rows[:,0],
+                ["b''", "b'Total final consumption'", "b'2012'"],
+                invert=True
+            ),
+            np.in1d(
+                cols_showing_redundant_rows[:,1],
+                ["b''", "b'SectorIn'", "b'2012'"],
+                invert=True
+            )
+        ))
+    )[0]]
+
+    consumption = consumption[:, np.where(np.in1d(consumption[0,:], ["b'Total final consumption'", "b'SectorIn'"], invert=True))[0]]
+
+    # Consolidate top 2 rows into single useful row and trim top row
+    consumption[1, np.where(consumption[0,:] != "b'Petajoules'")[0]] = consumption[0, np.where(consumption[0,:] != "b'Petajoules'")[0]]
+    consumption = consumption[1:]
+
+    # Move categorical data cols to start of row
+
+    consumption_categories = np.concatenate((consumption[:,:1], consumption[:,-3:]), axis=1)
+    consumption = consumption[:,1:-3]
+
+    np.savetxt('consumption.csv', np.concatenate((consumption_categories, consumption), axis=1), delimiter=',', fmt='%s')
+
     #TODO Read in balance.txt and consumption.txt, mapping to models 
     loading_session.close()
 

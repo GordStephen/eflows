@@ -1,5 +1,5 @@
 *.pyc
 *.db
-balance.txt
-consumption.txt
+*.txt
+*.csv
 .venv
