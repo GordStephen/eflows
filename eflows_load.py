@@ -100,9 +100,9 @@ def load_balance(annual_stock_name='Annual (Short-Term) Stock'):
 
     # Consolidate sources into single column (!!)
 
-    """
     ## Production and imports
     def prod_or_import(val):
+        val = val[0]
         production_pattern = re.compile('prod$|production$')
         import_pattern = re.compile('imp$|import$')
         if re.search(production_pattern, val):
@@ -110,12 +110,15 @@ def load_balance(annual_stock_name='Annual (Short-Term) Stock'):
         elif re.search(import_pattern, val):
             return 'Imports'
         else:
-            raise Exception('Production / Import pattern match failed.')
+            return None
 
     production_import_col = balance[:, np.where(balance[0]=='Production and imports')]
+    production_import_row_idx = np.where(production_import_col != '')
+
     for n in range(1,len(production_import_col)):
-        balance[n, source_col] = prod_or_import(production_import_col[n])
-    """
+        balance_metadata[n, 2] = prod_or_import(production_import_col[n, 0])
+
+    balance_metadata[production_import_row_idx, 3] = annual_stock_name 
     
     ## Stock builds and draws
     stocks_build_col = balance[:, np.where(balance[0]=='Stock changes')]
@@ -138,9 +141,66 @@ def load_balance(annual_stock_name='Annual (Short-Term) Stock'):
     balance_metadata[stocks_draw_row_idx,2] = 'Long-Term Stock Changes' 
     balance_metadata[stocks_draw_row_idx,3] = annual_stock_name 
 
+    ## Statistical difference ins and outs
 
-    #np.savetxt('balance.csv', np.concatenate((balance_metadata, balance[:,1:-16]), axis=1), delimiter=',', fmt='%s')
-    np.savetxt('balance.csv', balance, delimiter=',', fmt='%s')
+    stat_diffs_neg_col = balance[:, np.where(balance[0]=='Statistical differences')]
+    stat_diffs_neg_row_idx = np.where(stat_diffs_neg_col != '')
+    balance_metadata[stat_diffs_neg_row_idx,2] = annual_stock_name 
+    balance_metadata[stat_diffs_neg_row_idx,3] = 'Statistical Differences' 
+
+    stat_diffs_pos_col = balance[:, np.where(balance[0]=='Statistical differences out')]
+    stat_diffs_pos_row_idx = np.where(stat_diffs_pos_col != '')
+    balance_metadata[stat_diffs_pos_row_idx,2] = 'Statistical Differences' 
+    balance_metadata[stat_diffs_pos_row_idx,3] = annual_stock_name 
+
+    stat_diffs_neg_col = balance[:, np.where(balance[0]=='StatisticaI differences')]
+    stat_diffs_neg_row_idx = np.where(stat_diffs_neg_col != '')
+    balance_metadata[stat_diffs_neg_row_idx,2] = annual_stock_name 
+    balance_metadata[stat_diffs_neg_row_idx,3] = 'Statistical Differences' 
+
+    stat_diffs_pos_col = balance[:, np.where(balance[0]=='StatisticaI difference2')]
+    stat_diffs_pos_row_idx = np.where(stat_diffs_pos_col != '')
+    balance_metadata[stat_diffs_pos_row_idx,2] = 'Statistical Differences' 
+    balance_metadata[stat_diffs_pos_row_idx,3] = annual_stock_name 
+
+    ## Power plants 
+
+    power_plant_input_col = balance[:, np.where(balance[0]=='Power plants input')]
+    power_plant_input_row_idx = np.where(power_plant_input_col != '')
+    balance_metadata[power_plant_input_row_idx, 2] = annual_stock_name 
+    balance_metadata[power_plant_input_row_idx, 3] = 'Power Plants' 
+
+    power_plant_output_col = balance[:, np.where(balance[0]=='Power plants output')]
+    power_plant_output_row_idx = np.where(power_plant_output_col != '')
+    balance_metadata[power_plant_output_row_idx, 2] = 'Power Plants' 
+
+
+    ## Refineries and other transformations
+    refineries_other_input_col = balance[:, np.where(balance[0]=='Transformation1')]
+    refineries_other_input_row_idx = np.where(refineries_other_input_col != '')
+    balance_metadata[refineries_other_input_row_idx, 2] = annual_stock_name 
+    balance_metadata[refineries_other_input_row_idx, 3] = refineries_other_input_col[refineries_other_input_row_idx]
+
+    refineries_other_output_col = balance[:, np.where(balance[0]=='Transformation2')]
+    refineries_other_output_row_idx = np.where(refineries_other_output_col != '')
+    balance_metadata[refineries_other_output_row_idx, 2] = refineries_other_output_col[refineries_other_output_row_idx]
+    balance_metadata[refineries_other_output_row_idx, 3] = annual_stock_name 
+
+    # All remaining undefined sources / sinks default to annual stock
+    for n in range(1,len(balance_metadata[:,2])):
+        if balance_metadata[n,2] is None:
+            balance_metadata[n,2] = annual_stock_name
+
+    missing_sink_row_idx = np.where(balance_metadata[:, 3] == '')
+    balance_metadata[missing_sink_row_idx, 3] = annual_stock_name
+
+    # Metadata headings
+    balance_metadata[0, 1] = 'Resource'
+    balance_metadata[0, 2] = 'Source'
+    balance_metadata[0, 3] = 'Sink'
+
+    np.savetxt('balance.csv', np.concatenate((balance_metadata, balance[:,1:-16]), axis=1), delimiter=',', fmt='%s')
+    #np.savetxt('balance.csv', balance, delimiter=',', fmt='%s')
 
     return balance, balance_metadata
 
