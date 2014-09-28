@@ -4,6 +4,7 @@ from eflows_load import load_consumption, load_balance
 from eflows_models import Base, Resource, NodeSector, Node, Flow, resource_source_nodes, resource_sink_nodes
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from mako.template import Template
 
 parser = argparse.ArgumentParser(description='Loads, stores, and summarizes national energy flow data')
 
@@ -22,10 +23,11 @@ if args.load_data:
     print('Building energy flows database schema...')
     Base.metadata.create_all(engine)
     loading_session = Session()
+    loading_session.execute('pragma foreign_keys=on')
 
     # Load in raw data
     print('Reading in energy flows data...')
-    balance, balance_metadata = load_balance()
+    balance_metadata, balance_values = load_balance()
     consumption, consumption_categories = load_consumption()
 
     # Populate models from raw data
@@ -34,7 +36,7 @@ if args.load_data:
     # Create resources
     print('  Adding resources...')
     resources = []
-    for resource in np.unique(balance[1:, np.where(balance[0] == 'Product')]):
+    for resource in np.unique(balance_metadata[1:, 1]):
         resources.append(Resource(name=resource))
     loading_session.add_all(resources)
     
@@ -46,6 +48,10 @@ if args.load_data:
     print('  Adding production / consumption / conversion nodes...')
 
     # Create basic nodes
+    for node in np.unique(np.concatenate((balance_metadata[1:,2], balance_metadata[1:,3]), axis=0)):
+        loading_session.add(Node(name=node))
+
+    """
     production = Node(name='Primary Production', source_resources = resources)
     imports = Node(name='Imports', source_resources = resources)
     loading_session.add_all([production, imports])
@@ -62,6 +68,7 @@ if args.load_data:
     bunkers = Node(name='International Bunkers', sink_resources = resources)
     power_loss = Node(name='Power Loss', sink_resources=resources)
     loading_session.add_all([exports, bunkers, power_loss])
+    """
 
     # Create comsumption nodes 
     consumption_nodes_names_sectors = set(map(tuple, 
@@ -74,15 +81,12 @@ if args.load_data:
         consumption_nodes.append(Node(name=name, sector_name=sector, sink_resources = resources))
     loading_session.add_all(consumption_nodes)
 
-
-    # Add allowed resource source / sink nodes
+    print('  Adding resource flows...')
 
     # Add consumption flows to db
-    print('  Adding resource flows...')
     for n in range(1,len(consumption)):
         for year_num in range(len(consumption[n])):
             loading_session.add(Flow(
-                name = consumption_categories[n, 0] + consumption[0, year_num],
                 resource_name = consumption_categories[n, 1],
                 source_node_name = 'Annual (Short-Term) Stock',
                 sink_node_name = consumption_categories[n, 3],
@@ -90,16 +94,36 @@ if args.load_data:
                 year = int(consumption[0, year_num])
             ))
             
-    for n in range(1, len(balance)):
-        for year_num in range(len(balance[n])):
-            pass   
+    # Add balance flows to db
+    for n in range(1, len(balance_values)):
+        for year_num in range(len(balance_values[n])):
+            loading_session.add(Flow(
+                resource_name = balance_metadata[n, 1],
+                source_node_name = balance_metadata[n, 2],
+                sink_node_name = balance_metadata[n, 3],
+                volume = float(balance_values[n, year_num]),
+                year = int(balance_values[0, year_num])
+            ))
 
+    print('Database loaded successfully.')
     loading_session.commit()
     loading_session.close()
-    #print('Database loaded.')
 
 session = Session()
-# Read values, generate plots, tables, etc
-session.close()
 
+def resource_into_sector(sector_name, resource_name, year):
+    return session.execute('''select sum(volume) from flows, nodes 
+            where nodes.sector_name = :sector and nodes.name = flows.sink_node_name and flows.resource_name = :resource and flows.year = :year''', {'resource':resource_name, 'sector':sector_name, 'year':year}).fetchone()[0]
+
+def resource_into_node(node_name, resource_name, year):
+    return session.execute('select sum(volume) from flows where sink_node_name = :node and resource_name = :resource and year = :year', {'resource':resource_name, 'node':node_name, 'year':year}).fetchone()[0]
+
+def resource_from_node(node_name, resource_name, year):
+    return session.execute('select sum(volume) from flows where source_node_name = :node and resource_name = :resource and year = :year', {'resource':resource_name, 'node':node_name, 'year':year}).fetchone()[0]
+
+#energy_balance_template = Template(filename='')
+#energy_balance_template.render()
+
+
+session.close()
 

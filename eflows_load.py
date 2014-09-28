@@ -199,8 +199,10 @@ def load_balance(annual_stock_name='Annual (Short-Term) Stock'):
     balance_metadata[0, 2] = 'Source'
     balance_metadata[0, 3] = 'Sink'
 
-    np.savetxt('balance.csv', np.concatenate((balance_metadata, balance[:,1:-16]), axis=1), delimiter=',', fmt='%s')
+    balance_values = balance[:,1:-16]
+
+    np.savetxt('balance.csv', np.concatenate((balance_metadata, balance_values), axis=1), delimiter=',', fmt='%s')
     #np.savetxt('balance.csv', balance, delimiter=',', fmt='%s')
 
-    return balance, balance_metadata
+    return balance_metadata, balance_values
 

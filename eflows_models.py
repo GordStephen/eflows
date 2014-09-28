@@ -35,6 +35,9 @@ class Node(Base):
     source_flows = relationship('Flow', foreign_keys='[Flow.source_node_name]', backref='source_node')
     sink_flows = relationship('Flow', foreign_keys='[Flow.sink_node_name]', backref='sink_node')
 
+    def __repr__(self):
+        return "<Node '%s'>" % (self.name)
+
 resource_source_nodes = Table(
     'resource_source_nodes', Base.metadata,
     Column('resource_name', String, ForeignKey('resources.name')),
@@ -51,7 +54,6 @@ class Flow(Base):
     __tablename__ = 'flows'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String, unique=True)
     resource_name = Column(String, ForeignKey('resources.name'))
     source_node_name = Column(String, ForeignKey('nodes.name'))
     sink_node_name = Column(String, ForeignKey('nodes.name')) 
