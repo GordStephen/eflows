@@ -25,7 +25,7 @@ if args.load_data:
 
     # Load in raw data
     print('Reading in energy flows data...')
-    balance = load_balance()
+    balance, balance_metadata = load_balance()
     consumption, consumption_categories = load_consumption()
 
     # Populate models from raw data
@@ -80,7 +80,6 @@ if args.load_data:
     # Add consumption flows to db
     print('  Adding resource flows...')
     for n in range(1,len(consumption)):
-        
         for year_num in range(len(consumption[n])):
             loading_session.add(Flow(
                 name = consumption_categories[n, 0] + consumption[0, year_num],
@@ -92,7 +91,8 @@ if args.load_data:
             ))
             
     for n in range(1, len(balance)):
-        pass   
+        for year_num in range(len(balance[n])):
+            pass   
 
     loading_session.commit()
     loading_session.close()
