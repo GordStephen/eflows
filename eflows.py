@@ -1,7 +1,7 @@
 import argparse, csv
 import numpy as np
 from eflows_load import load_consumption, load_balance
-from eflow_models import Base, Resource, NodeSector, Node, Flow, resource_source_nodes, resource_sink_nodes
+from eflows_models import Base, Resource, NodeSector, Node, Flow, resource_source_nodes, resource_sink_nodes
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -32,58 +32,71 @@ if args.load_data:
     print('Populating database from file...')
 
     # Create resources
+    print('  Adding resources...')
+    resources = []
     for resource in np.unique(balance[1:, np.where(balance[0] == 'Product')]):
-        loading_session.add(Resource(name=resource))
+        resources.append(Resource(name=resource))
+    loading_session.add_all(resources)
     
     # Create consumption node sectors 
+    print('  Adding consumption sectors...')
     for consumption_node_sector in np.unique(consumption_categories[1:, np.where(consumption_categories[0] == 'SectorOut')]):
         loading_session.add(NodeSector(name=consumption_node_sector))
 
+    print('  Adding production / consumption / conversion nodes...')
+
     # Create basic nodes
-    production = Node(name='Primary Production')
-    imports = Node(name='Imports')
+    production = Node(name='Primary Production', source_resources = resources)
+    imports = Node(name='Imports', source_resources = resources)
     loading_session.add_all([production, imports])
 
-    annual_stock = Node(name='Annual (Short-Term) Stock')
-    stocks = Node(name='Long-Term Stocks')
-    stat_diff = Node(name='Statistical Differences')
-    power = Node(name='Power Plants')
-    refineries = Node(name='Refineries')
-    other_conv = Node(name='Other Conversions')
+    annual_stock = Node(name='Annual (Short-Term) Stock', source_resources = resources, sink_resources = resources)
+    stocks = Node(name='Long-Term Stocks', source_resources = resources, sink_resources = resources)
+    stat_diff = Node(name='Statistical Differences', source_resources = resources, sink_resources = resources)
+    power = Node(name='Power Plants', source_resources = resources, sink_resources = resources) #TODO Limit source resources
+    refineries = Node(name='Refineries', source_resources = resources, sink_resources = resources) #TODO Limit source / sink resources
+    other_conv = Node(name='Other Conversions', source_resources = resources, sink_resources = resources)
     loading_session.add_all([annual_stock, stocks, stat_diff, power, refineries, other_conv])
 
-    exports = Node(name='Exports')
-    bunkers = Node(name='International Bunkers')
-    power_loss = Node(name='Power Loss')
+    exports = Node(name='Exports', sink_resources = resources)
+    bunkers = Node(name='International Bunkers', sink_resources = resources)
+    power_loss = Node(name='Power Loss', sink_resources=resources)
     loading_session.add_all([exports, bunkers, power_loss])
 
     # Create comsumption nodes 
-    consumption_nodes = set(map(tuple, 
+    consumption_nodes_names_sectors = set(map(tuple, 
         consumption_categories[1:, np.where(
             np.in1d(consumption_categories[0], ['SectorOut', 'Consumption by sector'])
         )[0]]
     ))
-    for sector, name in consumption_nodes:
-        loading_session.add(Node(name=name, sector_name=sector))
+    consumption_nodes = []
+    for sector, name in consumption_nodes_names_sectors:
+        consumption_nodes.append(Node(name=name, sector_name=sector, sink_resources = resources))
+    loading_session.add_all(consumption_nodes)
 
-    """
+
+    # Add allowed resource source / sink nodes
+
     # Add consumption flows to db
+    print('  Adding resource flows...')
     for n in range(1,len(consumption)):
         
         for year_num in range(len(consumption[n])):
-            new_flow = Flow(
-                name = consumption_categories[n, 0],
+            loading_session.add(Flow(
+                name = consumption_categories[n, 0] + consumption[0, year_num],
                 resource_name = consumption_categories[n, 1],
-                source_node_name = 'Anuual (Short-Term) Stock',
+                source_node_name = 'Annual (Short-Term) Stock',
                 sink_node_name = consumption_categories[n, 3],
                 volume = float(consumption[n, year_num]),
                 year = int(consumption[0, year_num])
-            )
+            ))
             
-    """
+    for n in range(1, len(balance)):
+        pass   
 
     loading_session.commit()
     loading_session.close()
+    #print('Database loaded.')
 
 session = Session()
 # Read values, generate plots, tables, etc
