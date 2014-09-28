@@ -90,36 +90,37 @@ if args.load_data:
     loading_session = Session()
 
     # Load consumption.txt
-    consumption = np.loadtxt(open('consumption.txt', 'rb'), delimiter='\t', dtype=str)
+    consumption = np.loadtxt(open('consumption.txt', 'rb'), delimiter='\t', dtype=bytes).astype(str)
+    print(consumption)
 
     # Remove useless rows
-    consumption = consumption[np.where(np.in1d(consumption[:,0], ["b'ID'", "b'DESCRIPTION'", "b'UNIT'", "b'PARSETYPE'", "b'PRECISION'"], invert=True))]
+    consumption = consumption[np.where(np.in1d(consumption[:,0], ['ID', 'DESCRIPTION', 'UNIT', 'PARSETYPE', 'PRECISION'], invert=True))]
 
     # Remove useless columns
-    consumption = consumption[:, np.where(np.in1d(consumption[0,:], ["b'Millions of tonnes of oil equivalent'", "b'META'", "b'CODE'", "b''"], invert=True))[0]]
+    consumption = consumption[:, np.where(np.in1d(consumption[0,:], ['Millions of tonnes of oil equivalent', 'META', 'CODE', ''], invert=True))[0]]
 
     # Remove redundant (summary) rows and their indicator columns
-    cols_showing_redundant_rows = consumption[:, np.where(np.in1d(consumption[0,:], ["b'Total final consumption'", "b'SectorIn'"]))[0]]
+    cols_showing_redundant_rows = consumption[:, np.where(np.in1d(consumption[0,:], ['Total final consumption', 'SectorIn']))[0]]
 
     consumption = consumption[np.where(
         np.logical_not(np.logical_or(
             np.in1d(
                 cols_showing_redundant_rows[:,0],
-                ["b''", "b'Total final consumption'", "b'2012'"],
+                ['', 'Total final consumption', '2012'],
                 invert=True
             ),
             np.in1d(
                 cols_showing_redundant_rows[:,1],
-                ["b''", "b'SectorIn'", "b'2012'"],
+                ['', 'SectorIn', '2012'],
                 invert=True
             )
         ))
     )[0]]
 
-    consumption = consumption[:, np.where(np.in1d(consumption[0,:], ["b'Total final consumption'", "b'SectorIn'"], invert=True))[0]]
+    consumption = consumption[:, np.where(np.in1d(consumption[0,:], ['Total final consumption', 'SectorIn'], invert=True))[0]]
 
     # Consolidate top 2 rows into single useful row and trim top row
-    consumption[1, np.where(consumption[0,:] != "b'Petajoules'")[0]] = consumption[0, np.where(consumption[0,:] != "b'Petajoules'")[0]]
+    consumption[1, np.where(consumption[0,:] != 'Petajoules')[0]] = consumption[0, np.where(consumption[0,:] != 'Petajoules')[0]]
     consumption = consumption[1:]
 
     # Move categorical data cols to start of row
