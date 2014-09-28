@@ -42,7 +42,7 @@ def load_consumption():
 
     np.savetxt('consumption.csv', np.concatenate((consumption_categories, consumption), axis=1), delimiter=',', fmt='%s')
 
-    return consumption
+    return consumption, consumption_categories
     
 def load_balance():
 

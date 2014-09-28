@@ -21,55 +21,41 @@ Session = sessionmaker(bind=engine)
 class Resource(Base):
     __tablename__ = 'resources'
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String, unique=True)
+    name = Column(String, primary_key=True)
     flows = relationship('Flow', backref='resource')
 
     def __repr__(self):
         return "<Resource '%s'>" % (self.name)
 
-class NodeCategoryClass(Base):
-    __tablename__ = 'node_category_classes'
+class NodeSector(Base):
+    __tablename__ = 'node_sectors'
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String, unique=True)
-    categories = relationship('NodeCategory', backref='class_')
-
-    def __repr__(self):
-        return "<NodeCategoryClass '%s'>" % (self.name)
-
-class NodeCategory(Base):
-    __tablename__ = 'node_categories'
-
-    id = Column(Integer, primary_key=True)
-    name = Column(String, unique=True)
-    class_id = Column(Integer, ForeignKey('node_category_classes.id'))
-    nodes = relationship('Node', backref='category')
+    name = Column(String, primary_key=True)
+    nodes = relationship('Node', backref='sector')
 
     def __repr__(self):
-        return "<NodeCategory '%s'>" % (self.name)
+        return "<NodeSector '%s'>" % (self.name)
 
 class Node(Base):
     __tablename__ = 'nodes'
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String, unique=True)
-    category_id = Column(Integer, ForeignKey('node_categories.id'))
+    name = Column(String, primary_key=True)
+    sector_name = Column(String, ForeignKey('node_sectors.name'))
     source_resources = relationship('Resource', secondary='resource_sink_nodes', backref='source_nodes')
     sink_resources = relationship('Resource', secondary='resource_source_nodes', backref='sink_nodes')
-    source_flows = relationship('Flow', foreign_keys='[Flow.source_node_id]', backref='source_node')
-    sink_flows = relationship('Flow', foreign_keys='[Flow.sink_node_id]', backref='sink_node')
+    source_flows = relationship('Flow', foreign_keys='[Flow.source_node_name]', backref='source_node')
+    sink_flows = relationship('Flow', foreign_keys='[Flow.sink_node_name]', backref='sink_node')
 
 resource_source_nodes = Table(
     'resource_source_nodes', Base.metadata,
-    Column('resource_id', Integer, ForeignKey('resources.id')),
-    Column('node_id', Integer, ForeignKey('nodes.id'))
+    Column('resource_name', String, ForeignKey('resources.name')),
+    Column('node_name', String, ForeignKey('nodes.name'))
 )
 
 resource_sink_nodes = Table(
     'resource_sink_nodes', Base.metadata,
-    Column('resource_id', Integer, ForeignKey('resources.id')),
-    Column('node_id', Integer, ForeignKey('nodes.id'))
+    Column('resource_name', String, ForeignKey('resources.name')),
+    Column('node_name', String, ForeignKey('nodes.name'))
 )
 
 class Flow(Base):
@@ -77,81 +63,89 @@ class Flow(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String, unique=True)
-    resource_id = Column(Integer, ForeignKey('resources.id'))
-    source_node_id = Column(Integer, ForeignKey('nodes.id'))
-    sink_node_id = Column(Integer, ForeignKey('nodes.id')) 
+    resource_name = Column(String, ForeignKey('resources.name'))
+    source_node_name = Column(String, ForeignKey('nodes.name'))
+    sink_node_name = Column(String, ForeignKey('nodes.name')) 
     year = Column(Integer)
     volume = Column(Float)
 
     ForeignKeyConstraint(
-        ['resource_id', 'source_node_id'], 
-        ['resource_source_nodes.resource_id','resource_source_nodes.node_id']
+        ['resource_name', 'source_node_name'], 
+        ['resource_source_nodes.resource_name','resource_source_nodes.node_name']
     )
 
     ForeignKeyConstraint(
-        ['resource_id', 'sink_node_id'], 
-        ['resource_sink_nodes.resource_id','resource_sink_nodes.node_id']
+        ['resource_name', 'sink_node_name'], 
+        ['resource_sink_nodes.resource_name','resource_sink_nodes.node_name']
     )
 
 if args.load_data:
+
+    print('Clearing existing energy flows database...')
+    Base.metadata.drop_all(engine)
+
+    print('Building energy flows database schema...')
     Base.metadata.create_all(engine)
     loading_session = Session()
 
-    # Create basic nodes
+    # Load in raw data
+    print('Reading in energy flows data...')
+    balance = load_balance()
+    consumption, consumption_categories = load_consumption()
 
+    # Populate models from raw data
+    print('Populating database from file...')
+
+    # Create resources
+    for resource in np.unique(balance[1:, np.where(balance[0] == 'Product')]):
+        loading_session.add(Resource(name=resource))
+    
+    # Create consumption node sectors 
+    for consumption_node_sector in np.unique(consumption_categories[1:, np.where(consumption_categories[0] == 'SectorOut')]):
+        loading_session.add(NodeSector(name=consumption_node_sector))
+
+    # Create basic nodes
     production = Node(name='Primary Production')
     imports = Node(name='Imports')
+    loading_session.add_all([production, imports])
 
     annual_stock = Node(name='Annual (Short-Term) Stock')
-
     stocks = Node(name='Long-Term Stocks')
     stat_diff = Node(name='Statistical Differences')
     power = Node(name='Power Plants')
     refineries = Node(name='Refineries')
     other_conv = Node(name='Other Conversions')
+    loading_session.add_all([annual_stock, stocks, stat_diff, power, refineries, other_conv])
 
     exports = Node(name='Exports')
     bunkers = Node(name='International Bunkers')
     power_loss = Node(name='Power Loss')
-    
-    consumption = load_consumption()
-    balance = load_balance()
+    loading_session.add_all([exports, bunkers, power_loss])
+
+    # Create comsumption nodes 
+    consumption_nodes = set(map(tuple, 
+        consumption_categories[1:, np.where(
+            np.in1d(consumption_categories[0], ['SectorOut', 'Consumption by sector'])
+        )[0]]
+    ))
+    for sector, name in consumption_nodes:
+        loading_session.add(Node(name=name, sector_name=sector))
 
     """
+    # Add consumption flows to db
     for n in range(1,len(consumption)):
         
-        # Check if resource exists in db, add if not
-        new_resource = Resource(name=consumption_categories[n,1])
-        loading_session.add(new_resource)
-
-        # Check if node category class exists in db, add if not
-        new_node_category_class = NodeCategoryClass(name=consumption_categories[n,2])
-        loading_session.add(new_node_category_class)
-
-        # Check if node category exists in db, add if not
-        new_node_category = NodeCategory(
-            name=consumption_categories[n,3], 
-            class_=new_node_category_class
-        )
-        loading_session.add(new_node_category)
-
-        # Check if node exists in db, add if not
-        new_node = Node(category=new_node_category)
-        loading_session.add(new_node)
-
-        # Add flows to db
         for year_num in range(len(consumption[n])):
             new_flow = Flow(
-                name = consumption_categories[n,0],
-                resource = new_resource,
-                source_node = '',
-                sink_node = '',
+                name = consumption_categories[n, 0],
+                resource_name = consumption_categories[n, 1],
+                source_node_name = 'Anuual (Short-Term) Stock',
+                sink_node_name = consumption_categories[n, 3],
                 volume = float(consumption[n, year_num]),
                 year = int(consumption[0, year_num])
             )
             
     """
-
 
     loading_session.commit()
     loading_session.close()
