@@ -1,8 +1,9 @@
 import argparse, csv
 import numpy as np
-from sqlalchemy import create_engine, Table, Column, Integer, String, ForeignKey
+from eflows_load import load_consumption, load_balance
+from sqlalchemy import create_engine, Table, Column, Integer, String, Float, ForeignKey
 from sqlalchemy.schema import ForeignKeyConstraint 
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
 
 parser = argparse.ArgumentParser(description='Loads, stores, and summarizes national energy flow data')
@@ -21,7 +22,8 @@ class Resource(Base):
     __tablename__ = 'resources'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String)
+    name = Column(String, unique=True)
+    flows = relationship('Flow', backref='resource')
 
     def __repr__(self):
         return "<Resource '%s'>" % (self.name)
@@ -30,8 +32,8 @@ class NodeCategoryClass(Base):
     __tablename__ = 'node_category_classes'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String)
-    #categories = relationship(NodeCategory, backref='class')
+    name = Column(String, unique=True)
+    categories = relationship('NodeCategory', backref='class_')
 
     def __repr__(self):
         return "<NodeCategoryClass '%s'>" % (self.name)
@@ -40,9 +42,9 @@ class NodeCategory(Base):
     __tablename__ = 'node_categories'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String)
+    name = Column(String, unique=True)
     class_id = Column(Integer, ForeignKey('node_category_classes.id'))
-    #nodes = relationship(Node
+    nodes = relationship('Node', backref='category')
 
     def __repr__(self):
         return "<NodeCategory '%s'>" % (self.name)
@@ -51,8 +53,12 @@ class Node(Base):
     __tablename__ = 'nodes'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String)
+    name = Column(String, unique=True)
     category_id = Column(Integer, ForeignKey('node_categories.id'))
+    source_resources = relationship('Resource', secondary='resource_sink_nodes', backref='source_nodes')
+    sink_resources = relationship('Resource', secondary='resource_source_nodes', backref='sink_nodes')
+    source_flows = relationship('Flow', foreign_keys='[Flow.source_node_id]', backref='source_node')
+    sink_flows = relationship('Flow', foreign_keys='[Flow.sink_node_id]', backref='sink_node')
 
 resource_source_nodes = Table(
     'resource_source_nodes', Base.metadata,
@@ -70,10 +76,12 @@ class Flow(Base):
     __tablename__ = 'flows'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String)
+    name = Column(String, unique=True)
     resource_id = Column(Integer, ForeignKey('resources.id'))
-    source_node_id = Column(Integer) 
-    sink_node_id = Column(Integer) 
+    source_node_id = Column(Integer, ForeignKey('nodes.id'))
+    sink_node_id = Column(Integer, ForeignKey('nodes.id')) 
+    year = Column(Integer)
+    volume = Column(Float)
 
     ForeignKeyConstraint(
         ['resource_id', 'source_node_id'], 
@@ -89,48 +97,63 @@ if args.load_data:
     Base.metadata.create_all(engine)
     loading_session = Session()
 
-    # Load consumption.txt
-    consumption = np.loadtxt(open('consumption.txt', 'rb'), delimiter='\t', dtype=bytes).astype(str)
-    print(consumption)
+    # Create basic nodes
 
-    # Remove useless rows
-    consumption = consumption[np.where(np.in1d(consumption[:,0], ['ID', 'DESCRIPTION', 'UNIT', 'PARSETYPE', 'PRECISION'], invert=True))]
+    production = Node(name='Primary Production')
+    imports = Node(name='Imports')
 
-    # Remove useless columns
-    consumption = consumption[:, np.where(np.in1d(consumption[0,:], ['Millions of tonnes of oil equivalent', 'META', 'CODE', ''], invert=True))[0]]
+    annual_stock = Node(name='Annual (Short-Term) Stock')
 
-    # Remove redundant (summary) rows and their indicator columns
-    cols_showing_redundant_rows = consumption[:, np.where(np.in1d(consumption[0,:], ['Total final consumption', 'SectorIn']))[0]]
+    stocks = Node(name='Long-Term Stocks')
+    stat_diff = Node(name='Statistical Differences')
+    power = Node(name='Power Plants')
+    refineries = Node(name='Refineries')
+    other_conv = Node(name='Other Conversions')
 
-    consumption = consumption[np.where(
-        np.logical_not(np.logical_or(
-            np.in1d(
-                cols_showing_redundant_rows[:,0],
-                ['', 'Total final consumption', '2012'],
-                invert=True
-            ),
-            np.in1d(
-                cols_showing_redundant_rows[:,1],
-                ['', 'SectorIn', '2012'],
-                invert=True
+    exports = Node(name='Exports')
+    bunkers = Node(name='International Bunkers')
+    power_loss = Node(name='Power Loss')
+    
+    consumption = load_consumption()
+    balance = load_balance()
+
+    """
+    for n in range(1,len(consumption)):
+        
+        # Check if resource exists in db, add if not
+        new_resource = Resource(name=consumption_categories[n,1])
+        loading_session.add(new_resource)
+
+        # Check if node category class exists in db, add if not
+        new_node_category_class = NodeCategoryClass(name=consumption_categories[n,2])
+        loading_session.add(new_node_category_class)
+
+        # Check if node category exists in db, add if not
+        new_node_category = NodeCategory(
+            name=consumption_categories[n,3], 
+            class_=new_node_category_class
+        )
+        loading_session.add(new_node_category)
+
+        # Check if node exists in db, add if not
+        new_node = Node(category=new_node_category)
+        loading_session.add(new_node)
+
+        # Add flows to db
+        for year_num in range(len(consumption[n])):
+            new_flow = Flow(
+                name = consumption_categories[n,0],
+                resource = new_resource,
+                source_node = '',
+                sink_node = '',
+                volume = float(consumption[n, year_num]),
+                year = int(consumption[0, year_num])
             )
-        ))
-    )[0]]
+            
+    """
 
-    consumption = consumption[:, np.where(np.in1d(consumption[0,:], ['Total final consumption', 'SectorIn'], invert=True))[0]]
 
-    # Consolidate top 2 rows into single useful row and trim top row
-    consumption[1, np.where(consumption[0,:] != 'Petajoules')[0]] = consumption[0, np.where(consumption[0,:] != 'Petajoules')[0]]
-    consumption = consumption[1:]
-
-    # Move categorical data cols to start of row
-
-    consumption_categories = np.concatenate((consumption[:,:1], consumption[:,-3:]), axis=1)
-    consumption = consumption[:,1:-3]
-
-    np.savetxt('consumption.csv', np.concatenate((consumption_categories, consumption), axis=1), delimiter=',', fmt='%s')
-
-    #TODO Read in balance.txt and consumption.txt, mapping to models 
+    loading_session.commit()
     loading_session.close()
 
 session = Session()
