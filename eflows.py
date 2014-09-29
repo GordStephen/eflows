@@ -1,7 +1,7 @@
 import argparse, csv
 import numpy as np
-from eflows_load import load_consumption, load_balance
-from eflows_models import Base, Resource, NodeSector, Node, Flow, resource_source_nodes, resource_sink_nodes
+from eflows.load import load_consumption, load_balance
+from eflows.models import Base, Resource, NodeSector, Node, Flow, resource_source_nodes, resource_sink_nodes
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from mako.template import Template
@@ -110,19 +110,8 @@ if args.load_data:
     loading_session.close()
 
 session = Session()
-
-def resource_into_sector(sector_name, resource_name, year):
-    return session.execute('''select sum(volume) from flows, nodes 
-            where nodes.sector_name = :sector and nodes.name = flows.sink_node_name and flows.resource_name = :resource and flows.year = :year''', {'resource':resource_name, 'sector':sector_name, 'year':year}).fetchone()[0]
-
-def resource_into_node(node_name, resource_name, year):
-    return session.execute('select sum(volume) from flows where sink_node_name = :node and resource_name = :resource and year = :year', {'resource':resource_name, 'node':node_name, 'year':year}).fetchone()[0]
-
-def resource_from_node(node_name, resource_name, year):
-    return session.execute('select sum(volume) from flows where source_node_name = :node and resource_name = :resource and year = :year', {'resource':resource_name, 'node':node_name, 'year':year}).fetchone()[0]
-
-#energy_balance_template = Template(filename='')
-#energy_balance_template.render()
+energy_balance_template = Template(filename='balances_template.html')
+energy_balance_template.render(year=1991)
 
 
 session.close()
