@@ -3,8 +3,8 @@
 <html>
   <head>
     <style type="text/css">
-      @page { size: 8.5in 5.5in; margin: .4em}
-      table {width: 100%; font-family:Arial; margin: 0; font-size: 0.6em; text-align:left;}
+      @page { size: letter portrait; margin: .4em}
+      table {width: 100%; font-family:Arial; margin: 1em 0; font-size: 0.6em; text-align:left; page-break-inside: avoid;}
       tr.resources th {text-align: center;}
       tr.category { font-weight: bold; background-color: #EEE; }
       tr.category th {font-weight:bold; }
@@ -14,6 +14,7 @@
     </style>
   </head>
   <body>
+  % for year in years:
   <table>
     <thead>
       <tr class="resources">
@@ -254,4 +255,5 @@
 
     </tbody>
   </table>
+  % endfor
 </body>

@@ -91,10 +91,8 @@ if args.load_data:
     loading_session.commit()
     loading_session.close()
 
+print('Generating balance tables...')
 energy_balance_template = Template(filename='templates/balances.html')
-years=[1973]
-
-for year in years:
-    print('Generating %s balance table...' % year)
-    HTML(string=energy_balance_template.render(year=year)).write_pdf('balances_%s.pdf' % year)
+years=[1973, 1990, 2010]
+HTML(string=energy_balance_template.render(years=years)).write_pdf('balances.pdf')
 
