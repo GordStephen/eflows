@@ -2,6 +2,7 @@
 *.db
 *.txt
 *.csv
+*.html
 .venv
 __pycache__
 .~lock.*

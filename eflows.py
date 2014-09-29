@@ -51,25 +51,6 @@ if args.load_data:
     for node in np.unique(np.concatenate((balance_metadata[1:,2], balance_metadata[1:,3]), axis=0)):
         loading_session.add(Node(name=node))
 
-    """
-    production = Node(name='Primary Production', source_resources = resources)
-    imports = Node(name='Imports', source_resources = resources)
-    loading_session.add_all([production, imports])
-
-    annual_stock = Node(name='Annual (Short-Term) Stock', source_resources = resources, sink_resources = resources)
-    stocks = Node(name='Long-Term Stocks', source_resources = resources, sink_resources = resources)
-    stat_diff = Node(name='Statistical Differences', source_resources = resources, sink_resources = resources)
-    power = Node(name='Power Plants', source_resources = resources, sink_resources = resources) #TODO Limit source resources
-    refineries = Node(name='Refineries', source_resources = resources, sink_resources = resources) #TODO Limit source / sink resources
-    other_conv = Node(name='Other Conversions', source_resources = resources, sink_resources = resources)
-    loading_session.add_all([annual_stock, stocks, stat_diff, power, refineries, other_conv])
-
-    exports = Node(name='Exports', sink_resources = resources)
-    bunkers = Node(name='International Bunkers', sink_resources = resources)
-    power_loss = Node(name='Power Loss', sink_resources=resources)
-    loading_session.add_all([exports, bunkers, power_loss])
-    """
-
     # Create comsumption nodes 
     consumption_nodes_names_sectors = set(map(tuple, 
         consumption_categories[1:, np.where(
@@ -110,9 +91,12 @@ if args.load_data:
     loading_session.close()
 
 session = Session()
-energy_balance_template = Template(filename='balances_template.html')
-f = open('balances1990.html', 'w')
-f.write(energy_balance_template.render(year=2012))
+energy_balance_template = Template(filename='templates/balances.html')
+years=[1973, 1990, 2010]
+
+for year in years:
+    f = open('balances_%s.html' % year, 'w')
+    f.write(energy_balance_template.render(year=year))
 
 
 session.close()
