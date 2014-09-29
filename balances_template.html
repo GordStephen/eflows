@@ -1,0 +1,123 @@
+<%namespace name="data" module="eflows.template_functions"/>
+<table>
+  <thead>
+    <tr>
+      <th>${year}</th>
+      % for resource in data.resources():
+      <th>${resource}</th>
+      % endfor
+    </tr>  
+  </thead>
+  <tbody>
+    <tr>
+      <th>Total Primary Energy Supply</th>
+    </tr> 
+    <tr>
+      <th>Production</th>
+      % for resource in data.resources():
+      <td>${data.resource_from_node('Primary Production', resource, year)}</td>
+      % endfor
+    </tr> 
+    <tr>
+      <th>Imports</th>
+      % for resource in data.resources():
+      <td>${data.resource_from_node('Imports', resource, year)}</td>
+      % endfor
+    </tr> 
+    <tr>
+      <th>Exports</th>
+      % for resource in data.resources():
+      <td>${data.resource_into_node('Exports', resource, year)}</td>
+      % endfor
+    </tr> 
+    <tr>
+      <th>International Bunkers</th>
+      % for resource in data.resources():
+      <td>${data.resource_into_node('Bunkers', resource, year)}</td>
+      % endfor
+    </tr> 
+    <tr>
+      <th>Stock Changes</th>
+      % for resource in data.resources():
+      <td>${data.resource_from_node('Stock Changes', resource, year) - data.resource_into_node('Stock Changes', resource, year)}</td>
+      % endfor
+    </tr> 
+    <tr>
+      <th>Total Energy Conversion</th>
+    </tr> 
+    <tr>
+      <th>Power Plants</th>
+    </tr> 
+    <tr>
+      <th>Refineries</th>
+    </tr> 
+    <tr>
+      <th>Other Transformations</th>
+    </tr> 
+    <tr>
+      <th>Use in Energy Production</th>
+    </tr> 
+    <tr>
+      <th>Final Consumption</th>
+    </tr> 
+    <tr>
+      <th>Industry</th>
+    </tr> 
+      <th> - Iron and Steel</th>
+    </tr> 
+    <tr>
+      <th> - Chemical and Petrochemical</th>
+    </tr> 
+    <tr>
+      <th> - Non-ferrous Metals</th>
+    </tr>
+    <tr>
+      <th> - Food and Tobacco</th>
+    </tr>
+    <tr>
+      <th> - Wood and Wood Products</th>
+    </tr> 
+    <tr>
+      <th>Transportation</th>
+    </tr> 
+    <tr>
+      <th> - Road</th>
+    </tr> 
+    <tr>
+      <th> - Rail</th>
+    </tr> 
+    <tr>
+      <th> - Air</th>
+    </tr>
+    <tr>
+      <th> - Marine</th>
+    </tr>
+    <tr>
+      <th> - Other</th>
+    </tr> 
+    <tr>
+      <th>Other</th>
+    </tr> 
+    <tr>
+      <th> - Residential</th>
+    </tr>
+    <tr>
+      <th> - Commerce and Public Services</th>
+    </tr>
+    <tr>
+      <th> - Agriculture / Forestry</th>
+    </tr>
+    <tr>
+      <th> - Fishing</th>
+    </tr>
+    <tr>
+      <th> - Other</th>
+    </tr>
+    <tr>
+      <th>Non-energy use</th>
+    </tr> 
+    <tr>
+      <th>Statistical Differences</th>
+    </tr> 
+  </tbody>
+</table>
