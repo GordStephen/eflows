@@ -2,10 +2,13 @@ import argparse, csv
 import numpy as np
 from eflows.load import load_consumption, load_balance
 from eflows.models import Base, Resource, NodeSector, Node, Flow, resource_source_nodes, resource_sink_nodes
+import eflows.template_functions as tf
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from mako.template import Template
 from weasyprint import HTML
+import matplotlib.pyplot as plt
+from matplotlib.sankey import Sankey
 
 parser = argparse.ArgumentParser(description='Loads, stores, and summarizes national energy flow data')
 
@@ -91,8 +94,46 @@ if args.load_data:
     loading_session.commit()
     loading_session.close()
 
+print('Generating Sankey diagrams...')
+year = 1990
+
+imports = tf.total_from_node(None, 'Imports', year) 
+production = tf.total_from_node(None, 'Primary Production', year) 
+stock_changes =  tf.total_from_node(None, 'Long-Term Stock Changes', year) - tf.total_into_node(None, 'Long-Term Stock Changes', year)
+bunkers =  tf.total_from_node(None, 'International Bunkers', year) - tf.total_into_node(None, 'International Bunkers', year)
+exports = -tf.total_into_node(None, 'Exports', year) 
+losses = -tf.total_into_node(None, 'Power losses', year)
+consumption = -tf.total_final_consumption(None, year) 
+stat_diffs =  tf.total_from_node(None, 'Statistical Differences', year) - tf.total_into_node(None, 'Statistical Differences', year)
+
+norm_const = imports + production + tf.total_from_node(None, 'Long-Term Stock Changes', year) + tf.total_from_node(None, 'International Bunkers', year) + tf.total_from_node(None, 'Statistical Differences', year)
+
+fig = plt.figure()
+ax = fig.add_subplot(1, 1, 1, xticks=[], yticks=[])
+ax.axis('off')
+
+sankey = Sankey(ax=ax, scale=0.5/norm_const, format='%.1f', unit=' PJ', head_angle=120, margin=0.2, shoulder=0, offset=0, gap=0.15, radius=0.1)
+
+sankey.add(
+        flows=[imports, production, stock_changes, bunkers, exports, losses, consumption, stat_diffs],
+       labels = ['Imports', 'Primary Production', 'Stock Changes', 'International\nBunkers', 'Exports', 'Losses', 'Final Consumption', 'Statistical\n Differences'],
+       orientations=[1, 0, -1, 1, 1, -1, 0, -1],
+       pathlengths = [0.1, 0.1, 0.2, 0.2, 0.1, 0.2, 0.1, 0.2],
+       trunklength=0.4,
+       lw=0.0
+)
+
+diagrams = sankey.finish()
+diagrams[0].patch.set_facecolor('#dddddd')
+for text in diagrams[0].texts:
+        text.set_fontsize(8)
+
+plt.savefig('test_output.pdf', format='pdf', bbox_inches='tight', pad_inches=0)
+
+"""
 print('Generating balance tables...')
 energy_balance_template = Template(filename='templates/balances.html')
 years=[1973, 1990, 2010]
 HTML(string=energy_balance_template.render(years=years)).write_pdf('balances.pdf')
+"""
 

@@ -21,6 +21,11 @@ def total_into_sector(context, sector_name, year):
             where nodes.sector_name = :sector and nodes.name = flows.sink_node_name and flows.year = :year''', {'sector':sector_name, 'year':year}).fetchone()[0] or 0.0
     return val if val else 0.
 
+def total_final_consumption(context, year):
+    val = session.execute('''select sum(volume) from flows, nodes 
+            where nodes.sector_name is not null and nodes.name = flows.sink_node_name and flows.year = :year''', {'year':year}).fetchone()[0] or 0.0
+    return val if val else 0.
+
 
 def resource_into_node(context, node_name, resource_name, year):
     val = session.execute('select sum(volume) from flows where sink_node_name = :node and resource_name = :resource and year = :year', {'resource':resource_name, 'node':node_name, 'year':year}).fetchone()[0] or 0.0
