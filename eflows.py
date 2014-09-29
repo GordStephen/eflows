@@ -111,7 +111,8 @@ if args.load_data:
 
 session = Session()
 energy_balance_template = Template(filename='balances_template.html')
-energy_balance_template.render(year=1991)
+f = open('balances1990.html', 'w')
+f.write(energy_balance_template.render(year=2012))
 
 
 session.close()
