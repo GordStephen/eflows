@@ -5,6 +5,7 @@ from eflows.models import Base, Resource, NodeSector, Node, Flow, resource_sourc
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from mako.template import Template
+from weasyprint import HTML
 
 parser = argparse.ArgumentParser(description='Loads, stores, and summarizes national energy flow data')
 
@@ -90,14 +91,10 @@ if args.load_data:
     loading_session.commit()
     loading_session.close()
 
-session = Session()
 energy_balance_template = Template(filename='templates/balances.html')
-years=[1973, 1990, 2010]
+years=[1973]
 
 for year in years:
-    f = open('balances_%s.html' % year, 'w')
-    f.write(energy_balance_template.render(year=year))
-
-
-session.close()
+    print('Generating %s balance table...' % year)
+    HTML(string=energy_balance_template.render(year=year)).write_pdf('balances_%s.pdf' % year)
 
