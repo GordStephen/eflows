@@ -3,6 +3,7 @@
 *.txt
 *.csv
 *.html
+*.pdf
 .venv
 __pycache__
 .~lock.*
