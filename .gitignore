@@ -4,6 +4,7 @@
 *.csv
 *.html
 *.pdf
+*.svg
 .venv
 __pycache__
 .~lock.*
