@@ -133,7 +133,7 @@ fig = plt.figure(figsize=(8,5), dpi=300)
 ax = fig.add_subplot(1, 1, 1, xticks=[], yticks=[])
 ax.axis('off')
 
-sankey = Sankey(ax=ax, scale=2/norm_const, format='%.1f', unit=' PJ', head_angle=120, margin=0.2, shoulder=0, offset=-0.05, gap=0.15, radius=0.1)
+sankey = Sankey(ax=ax, scale=2/norm_const, format='%.1f', unit=' PJ', head_angle=120, margin=0.2, shoulder=0, offset=-0.1, gap=0.15, radius=0.1)
 
 diagrams = sankey.add(
         flows=production_resource_volumes + [-production],
@@ -144,9 +144,9 @@ diagrams = sankey.add(
         
 ).add(
         flows=[imports, production, stock_changes, bunkers, -exports, -losses, -consumption, stat_diffs],
-        labels = ['Imports', 'Total Primary\nProduction', 'Stock Changes', 'International\nBunkers', 'Exports', 'Own Use &\nPower Losses', 'Total Final\nConsumption', 'Statistical\n Differences'],
+        labels = ['Imports', 'Total Primary\nProduction', 'Stock Changes', 'International\nBunkers', 'Exports', 'Own Use &\nPower Losses', None, 'Statistical\n Differences'],
         orientations=[1, 0, -1, 1, 1, -1, 0, -1],
-        pathlengths = [0.2, 0.0, 0.3, 0.3, 0.2, 0.3, -0.1, 0.4],
+        pathlengths = [0.2, 0.0, 0.3, 0.3, 0.2, 0.3, -0.2, 0.4],
         trunklength=0.4,
         prior=0,
         connect=(num_resources, 1)
