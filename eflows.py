@@ -101,32 +101,66 @@ imports = tf.total_from_node(None, 'Imports', year)
 production = tf.total_from_node(None, 'Primary Production', year) 
 stock_changes =  tf.total_from_node(None, 'Long-Term Stock Changes', year) - tf.total_into_node(None, 'Long-Term Stock Changes', year)
 bunkers =  tf.total_from_node(None, 'International Bunkers', year) - tf.total_into_node(None, 'International Bunkers', year)
-exports = -tf.total_into_node(None, 'Exports', year) 
-losses = -tf.total_into_node(None, 'Power losses', year)
-consumption = -tf.total_final_consumption(None, year) 
+exports = tf.total_into_node(None, 'Exports', year) 
+losses = tf.total_into_node(None, 'Power losses', year)
+consumption = tf.total_final_consumption(None, year) 
 stat_diffs =  tf.total_from_node(None, 'Statistical Differences', year) - tf.total_into_node(None, 'Statistical Differences', year)
+
+cons_industry = tf.total_into_sector(None, 'Industry', year) 
+cons_transport = tf.total_into_sector(None, 'Transport', year) 
+cons_other = tf.total_into_sector(None, 'Other', year)
+cons_other_residential = tf.total_into_node(None, 'Residential', year)
+cons_other_comm_public = tf.total_into_node(None, 'Commerce and public services', year)
+cons_other_other = cons_other - cons_other_residential - cons_other_comm_public
+cons_non_energy_use = tf.total_into_sector(None, 'Non-energy use', year)
 
 norm_const = imports + production + tf.total_from_node(None, 'Long-Term Stock Changes', year) + tf.total_from_node(None, 'International Bunkers', year) + tf.total_from_node(None, 'Statistical Differences', year)
 
-fig = plt.figure()
+fig = plt.figure(figsize=(8,5))
 ax = fig.add_subplot(1, 1, 1, xticks=[], yticks=[])
 ax.axis('off')
 
-sankey = Sankey(ax=ax, scale=0.5/norm_const, format='%.1f', unit=' PJ', head_angle=120, margin=0.2, shoulder=0, offset=0, gap=0.15, radius=0.1)
+sankey = Sankey(ax=ax, scale=1/norm_const, format='%.1f', unit=' PJ', head_angle=120, margin=0.2, shoulder=0, offset=-0.05, gap=0.15, radius=0.1)
 
 sankey.add(
-        flows=[imports, production, stock_changes, bunkers, exports, losses, consumption, stat_diffs],
-       labels = ['Imports', 'Primary Production', 'Stock Changes', 'International\nBunkers', 'Exports', 'Losses', 'Final Consumption', 'Statistical\n Differences'],
+        flows=[imports, production, stock_changes, bunkers, -exports, -losses, -consumption, stat_diffs],
+       labels = ['Imports', 'Total Primary\nProduction', 'Stock Changes', 'International\nBunkers', 'Exports', 'Losses', 'Total Final\nConsumption', 'Statistical\n Differences'],
        orientations=[1, 0, -1, 1, 1, -1, 0, -1],
-       pathlengths = [0.1, 0.1, 0.2, 0.2, 0.1, 0.2, 0.1, 0.2],
+       pathlengths = [0.1, 0.1, 0.2, 0.2, 0.1, 0.2, -0.1, 0.2],
        trunklength=0.4,
        lw=0.0
 )
 
+sankey.add(
+        flows=[consumption, -cons_industry, -cons_transport, -cons_non_energy_use, -cons_other],
+        labels=[None, 'Industry', 'Transportation', 'Non-Energy Use', None],
+        orientations=[0, 1, 1, -1, 0],
+        pathlengths=[0.3, 0.1, 0.1, 0.1, -0.1],
+        trunklength=0.2,
+        prior=0,
+        connect=(6,0), 
+        lw=0.0
+        
+)
+
+sankey.add(
+        flows=[cons_other, -cons_other_residential, -cons_other_comm_public, -cons_other_other],
+        labels=[None, 'Residential', 'Commerce and\nPublic Services', 'Other'],
+        orientations=[0, 0, 1, -1],
+        pathlengths=[0.1, 0.1, 0.1, 0.1],
+        trunklength=0.2,
+        prior=1,
+        connect=(4,0), 
+        lw=0.0
+        
+)
+
 diagrams = sankey.finish()
-diagrams[0].patch.set_facecolor('#dddddd')
-for text in diagrams[0].texts:
-        text.set_fontsize(8)
+
+for diagram in diagrams:
+    diagram.patch.set_facecolor('#dddddd')
+    for text in diagram.texts:
+            text.set_fontsize(6)
 
 plt.savefig('test_output.pdf', format='pdf', bbox_inches='tight', pad_inches=0)
 
