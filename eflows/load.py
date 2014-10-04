@@ -206,3 +206,8 @@ def load_balance(annual_stock_name='Annual (Short-Term) Stock'):
 
     return balance_metadata, balance_values
 
+def load_gdp():
+    country_data= np.loadtxt(open('PopulationGDP.csv', 'rb'), delimiter=',', dtype=bytes).astype(str)
+    gdp = country_data[1:,1].astype(float)
+
+    return gdp
